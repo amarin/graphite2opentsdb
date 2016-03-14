@@ -1,5 +1,9 @@
 # graphite2opentsdb
-Very simple Graphite to OpenTSDB data loader
+Very simple Graphite to OpenTSDB data loader with Python2.7
+
+## Compatibility
+
+Only Python2.7 tested
         
 ## Install
 
@@ -7,7 +11,7 @@ Very simple Graphite to OpenTSDB data loader
  
 ## Use
 
-Usage: graphite2opentsdb.py <command> <args>
+Usage: python graphite2opentsdb.py <command> <args>
 
     Supported commands:
 
