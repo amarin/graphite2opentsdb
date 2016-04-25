@@ -79,6 +79,9 @@ def metric_data(*args):
         response = requests.get(metric_data_url)
         if 200 == response.status_code:
             metrics_json = response.json()
+            if not len(metrics_json):
+                print("Unexpected response body: no data")
+                exit(64)
             if 'datapoints' in metrics_json[0]:
                 datapoints = metrics_json[0]["datapoints"]
                 for dp in datapoints:
