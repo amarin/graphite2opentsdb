@@ -1,3 +1,4 @@
+import copy
 import time
 import requests
 import sys
@@ -13,13 +14,37 @@ Usage: %s <cmd> <args>
     - list:
         Simply lists available metrics
 
-    - get <graphite.metric.name> [as <target_name>] tag1=value1 [tagN=valueN]:
+    - get <graphite.metric.name> [as <target_name>] [from <timeperiod>] [until <timeperiod>] tag1=value1 [tagN=valueN]:
         Get Graphite metric <graphite.metric.name> data and return it in OpenTSDB import format, i.e:
             <graphite.metric.name> <unix_time> <value> <tags>
-        if used with "as <target_name>", graphite metric name will replaced
+        if used with "as <target_name>", graphite metric name will replaced.
+
+        By default If "from" is omitted, it defaults to 24 hours ago.
+        If "until" is omitted, it defaults to the current time (now).
+
+
+        Timeperiod can be either in absolute or relative format,
+        described in Graphite data api description at http://graphite.readthedocs.org/en/latest/render_api.html
+
+        Absolute values can be set in the format HH:MM_YYMMDD, YYYYMMDD, MM/DD/YY, or any other at(1)-compatible time format.
+
+        Relative values is a length of time since the current time. It is always preceded by a minus sign ( - )
+        and followed by a unit of time. Valid units of time:
+
+        Abbreviation	Unit
+        s	            Seconds
+        min	            Minutes
+        h	            Hours
+        d	            Days
+        w	            Weeks
+        mon	            30 Days (month)
+        y	            365 Days (year)
+
 
         Example:
-        > get server.temperature.temp1 as temp1 entity=Obj100
+        > get server.temperature.temp1 as temp1 from -7d entity=Obj100
+
+
 ''' % sys.argv[0]
 
 
@@ -60,21 +85,47 @@ def list_metrics(*args):
 
 
 def metric_data(*args):
-    source_name = args[0]
+
+    parse_args = list()
+    parse_args.extend(args)
+    source_name = parse_args.pop(0)
+
     target_name = "%s" % source_name
+    opt = None
+    from_spec = None
+    until_spec = None
     tags = []
-    if 1 < len(args):
-        tags = args[1:]
-        if "as" == args[1]:
-            target_name = args[2]
-            tags = args[3:]
+
+    if 1 < len(parse_args):
+        print("parsing tags: {}".format(parse_args))
+        if "as" == parse_args[0]:
+            opt = parse_args.pop(0)
+            target_name = parse_args.pop(0)
+            print("Parsed {} {}, rest ones {}".format(opt.upper(), target_name, parse_args))
+        if "from" == parse_args[0]:
+            opt = parse_args.pop(0)
+            from_spec = parse_args.pop(0)
+            print("Parsed {} {}, rest ones {}".format(opt.upper(), from_spec, parse_args))
+        if "until" == parse_args[0]:
+            opt = parse_args.pop(0)
+            until_spec = parse_args.pop(0)
+            print("Parsed {} {}, rest ones {}".format(opt.upper(), from_spec, parse_args))
+
+        print("the rest should be tags {}".format(parse_args))
+        tags = parse_args[:]
     else:
         pass
 
-    metric_data_url = make_graphite_url("render/?&_salt=%s&target=%s&format=json" % (
-        time.time(),
-        source_name
-    ))
+    url = "render/?"
+    url += "format=json"
+    url += "&_salt={}".format(time.time())
+    url += "&target={}".format(source_name)
+    if from_spec:
+        url += "&from={}".format(from_spec)
+    if until_spec:
+        url += "&until={}".format(until_spec)
+
+    metric_data_url = make_graphite_url(url)
     try:
         response = requests.get(metric_data_url)
         if 200 == response.status_code:
